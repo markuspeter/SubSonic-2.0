@@ -351,8 +351,10 @@ namespace SubSonic.SubCommander
             DataService.Providers = new DataProviderCollection();
 
             //instance a section - we'll set this manually for the DataService
-            SubSonicSection section = new SubSonicSection();
-            section.TemplateDirectory = GetArg(ConfigurationPropertyName.TEMPLATE_DIRECTORY);
+            SubSonicSection section = new SubSonicSection
+                                          {
+                                              TemplateDirectory = GetArg(ConfigurationPropertyName.TEMPLATE_DIRECTORY)
+                                          };
             CodeService.TemplateDirectory = section.TemplateDirectory;
 
             string providerName = GetArg(ConfigurationPropertyName.PROVIDER_TO_USE);
@@ -366,10 +368,12 @@ namespace SubSonic.SubCommander
 
             //set the properties
             DataProvider provider = DataService.Provider;
-            NameValueCollection config = new NameValueCollection();
+            NameValueCollection config = new NameValueCollection
+                                             {
+                                                 {"connectionStringName", "Default"}
+                                             };
 
             //need to add this for now
-            config.Add("connectionStringName", "Default");
 
             if(!string.IsNullOrEmpty(GetArg(ConfigurationPropertyName.TEMPLATE_DIRECTORY)))
                 config.Add(ConfigurationPropertyName.TEMPLATE_DIRECTORY, GetArg(ConfigurationPropertyName.TEMPLATE_DIRECTORY));
@@ -543,8 +547,6 @@ namespace SubSonic.SubCommander
         /// <returns></returns>
         private static string GetOutputDirectory()
         {
-            string result;
-
             //this can be an absolute reference, or a partial name of a directory
             //like "App_Code/Generated"
 
@@ -552,7 +554,7 @@ namespace SubSonic.SubCommander
             string thisOutput = GetArg("out");
 
             //if there's a drive specified, then it's absolute
-            result = thisOutput.Contains(":") ? thisOutput : Path.Combine(Directory.GetCurrentDirectory(), thisOutput);            
+            string result = thisOutput.Contains(":") ? thisOutput : Path.Combine(Directory.GetCurrentDirectory(), thisOutput);            
 
             //now, if the output directory doesn't exist, create it
             if(!Directory.Exists(result))

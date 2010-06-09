@@ -518,9 +518,14 @@ namespace SubSonic
             string column = GetSelectColumns()[0];
 
             const string countSelect = @"SELECT COUNT(*) FROM ({0}) AS CountOfRecords";
-            if (query.Aggregates.Count > 0 || query.IsDistinct)
+            if (query.Aggregates.Count > 0)
             {
                 getCountSelect = String.Format(countSelect, BuildSelectStatement());
+            }
+            else if (query.IsDistinct)
+            {
+                string select = String.Concat(GenerateCommandLine(), GenerateFromList(), GenerateJoins(), GenerateWhere());
+                getCountSelect = String.Format(countSelect, select);
             }
             else
             {

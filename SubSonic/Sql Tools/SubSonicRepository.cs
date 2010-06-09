@@ -65,9 +65,7 @@ namespace SubSonic
 
         public Insert Insert()
         {
-            Insert i = new Insert();
-            i.Provider = _provider;
-            return i;
+            return new Insert { Provider = _provider };
         }
 
         public Delete Delete()
@@ -80,31 +78,42 @@ namespace SubSonic
             return new InlineQuery(_provider.Name);
         }
 
-        public bool IsOnline() {
-            bool result = false;
+        public bool IsOnline()
+        {
+            bool result;
 
-            using(DbConnection conn=this.Provider.CreateConnection()){
-                try {
+            using(DbConnection conn = Provider.CreateConnection())
+            {
+                try
+                {
                     conn.Open();
                     result = true;
-                } catch {
+                }
+                catch
+                {
                     result = false;
                 }
             }
-            return true;
+            return result;
         }
-        public bool IsOnline(string connectionString) {
-            bool result = false;
 
-            using (DbConnection conn = this.Provider.CreateConnection(connectionString)) {
-                try {
+        public bool IsOnline(string connectionString)
+        {
+            bool result;
+
+            using(DbConnection conn = Provider.CreateConnection(connectionString))
+            {
+                try
+                {
                     conn.Open();
                     result = true;
-                } catch {
+                }
+                catch
+                {
                     result = false;
                 }
             }
-            return true;
+            return result;
         }
 
         public T Get<T>(object primaryKeyValue) where T : RepositoryRecord<T>, new()
@@ -114,11 +123,11 @@ namespace SubSonic
             string pkColumn = tbl.PrimaryKey.ColumnName;
             using(IDataReader rdr = SelectAllColumnsFrom<T>().Where(pkColumn).IsEqualTo(primaryKeyValue).ExecuteReader())
             {
-                if (rdr.Read()) {
+                if(rdr.Read())
                     item.Load(rdr);
-                } else {
+                else
                     item = null;
-                }
+         
                 rdr.Close();
             }
 
@@ -128,13 +137,13 @@ namespace SubSonic
         public T Get<T>(string columnName, object columnValue) where T : RepositoryRecord<T>, new()
         {
             T item = new T();
-            using (IDataReader rdr = SelectAllColumnsFrom<T>().Where(columnName).IsEqualTo(columnValue).ExecuteReader())
+            using(IDataReader rdr = SelectAllColumnsFrom<T>().Where(columnName).IsEqualTo(columnValue).ExecuteReader())
             {
-                if (rdr.Read()) {
+                if(rdr.Read())
                     item.Load(rdr);
-                } else {
+                else
                     item = null;
-                }
+
                 rdr.Close();
             }
 
@@ -167,7 +176,8 @@ namespace SubSonic
             Delete<T>(pkColumn, pkValue);
         }
 
-		public void DeleteByKey<T>(object itemId) where T : RepositoryRecord<T>, new() {
+		public void DeleteByKey<T>(object itemId) where T : RepositoryRecord<T>, new() 
+        {
 			T item = new T();
 			TableSchema.Table tbl = item.GetSchema();
 			string pkColumn = tbl.PrimaryKey.ColumnName;
@@ -189,7 +199,8 @@ namespace SubSonic
             new Destroy().From(tbl).Where(columnName).IsEqualTo(value).Execute();
         }
 
-		public void DestroyByKey<T>(object itemId) where T : RepositoryRecord<T>, new() {
+		public void DestroyByKey<T>(object itemId) where T : RepositoryRecord<T>, new() 
+        {
 			T item = new T();
 			TableSchema.Table tbl = item.GetSchema();
 			string pkColumn = tbl.PrimaryKey.ColumnName;

@@ -22,8 +22,10 @@ namespace SubSonic
         {
             string[] source = new string[1];
             source[0] = sourceCode;
-            CompilerParameters compileParams = new CompilerParameters();
-            compileParams.GenerateInMemory = true;
+            CompilerParameters compileParams = new CompilerParameters
+                                                   {
+                                                       GenerateInMemory = true
+                                                   };
 
             //Gonna create an assembly on the fly
             //so we need all the standard DLL's referenced from the GAC
