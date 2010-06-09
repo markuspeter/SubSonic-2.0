@@ -422,6 +422,19 @@ namespace <%=provider.GeneratedNamespace%>
 
             if(fkTables != null)
             {
+                ArrayList multipleForeignKeyTables = new ArrayList();
+                // Sort ForeignKeyTableCollection
+                fkTables.Sort(delegate(TableSchema.ForeignKeyTable t1, TableSchema.ForeignKeyTable t2) {
+                 if (t1.TableName == t2.TableName) {
+                  if (!multipleForeignKeyTables.Contains(t1.TableName) && t1.ColumnName != t2.ColumnName) {
+                     multipleForeignKeyTables.Add(t1.TableName);
+                  }
+                  return t1.ColumnName.CompareTo(t2.ColumnName);
+                 } else {
+                  return t1.TableName.CompareTo(t2.TableName);
+                 }
+                });
+             
                 ArrayList usedPropertyNames = new ArrayList();
                 foreach(TableSchema.ForeignKeyTable fk in fkTables)
                 {
@@ -442,7 +455,8 @@ namespace <%=provider.GeneratedNamespace%>
                             fkMethod = "Parent" + fk.ClassName;
                         }
 
-                        if(usedPropertyNames.Contains(fk.ClassName))
+                        // Always append if multiple foreign keys to the same table
+                        if (multipleForeignKeyTables.Contains(fk.TableName))
                         {
                             fkMethod += "To" + fkID;
                         }

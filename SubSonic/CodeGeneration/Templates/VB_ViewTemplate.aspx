@@ -142,7 +142,20 @@ Namespace <%=nSpace %>
 	    }
 	    %>
 	    #End Region
-    
+        
+        #Region "Typed Columns"
+        <% for (int i = 0; i < cols.Count; i++)
+               {%>
+        
+        Public Shared ReadOnly Property <%= cols[i].PropertyName%>Column() As TableSchema.TableColumn
+            Get
+                Return Schema.Columns(<%= i %>)
+            End Get
+        End Property
+        <%} %>
+        
+        #End Region
+        
 	    #Region "Columns Struct"
 	    Public Structure Columns
 			Dim x as Integer
