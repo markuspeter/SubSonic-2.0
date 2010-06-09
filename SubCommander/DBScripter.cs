@@ -66,7 +66,7 @@ namespace SubSonic.SubCommander
             trans.Options.AnsiFile = true;
             trans.Options.ClusteredIndexes = true;
             trans.Options.DriAll = true;
-            trans.Options.IncludeHeaders = true;
+            trans.Options.IncludeHeaders = false;
             trans.Options.IncludeIfNotExists = true;
             trans.Options.SchemaQualify = true;
 
