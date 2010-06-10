@@ -1261,6 +1261,57 @@ namespace SubSonic
         }
 
         /// <summary>
+        /// Builds a typed list
+        /// </summary>
+        internal static List<T> BuildScalarList<T>(IDataReader rdr)
+		{
+            List<T> result = new List<T>();
+
+            //load it
+            while (rdr.Read())
+			{
+                T item = default(T);
+                object queryResult = rdr.GetValue(0);
+                if (queryResult != null && queryResult != DBNull.Value)
+				{
+                    item = (T)Utility.ChangeType(queryResult, typeof(T));
+                }
+
+                result.Add(item);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Executes the typed list
+        /// </summary>
+        public virtual List<T> ExecuteScalarList<T>()
+		{
+            IDataReader rdr = null;
+
+            try
+			{
+                rdr = ExecuteReader();
+            }
+            catch (Exception x)
+			{
+                if (rdr != null && !rdr.IsClosed)
+                    rdr.Close();
+                SqlQueryException ex = GenerateException(x);
+                throw ex;
+            }
+
+            List<T> result;
+            result = BuildScalarList<T>(rdr);
+
+            if (rdr != null && !rdr.IsClosed)
+                rdr.Close();
+
+            return result;
+        }
+
+        /// <summary>
         /// Gets the record count.
         /// </summary>
         /// <returns></returns>
@@ -1497,14 +1548,27 @@ namespace SubSonic
             }
             return null;
         }
-
+		
         internal static List<T> BuildTypedResult<T>(IDataReader rdr) where T : new()
-        {
+		{
+            // Do not load custom properties by default
+            return BuildTypedResult<T>(rdr, false);
+        }
+
+        internal static List<T> BuildTypedResult<T>(IDataReader rdr, bool loadCustomProperties) where T : new()
+		{
             List<T> result = new List<T>();
-            Type iType = typeof(T);
 
             if(Utility.IsSubSonicType<T>())
             {
+                //cache property info so we're not banging on reflection in a long loop
+                PropertyInfo[] cachedProps = null;
+                List<int> propIndices = null;
+                if (loadCustomProperties)
+				{
+                    cachedProps = GetCustomProperties<T>(rdr);
+                    propIndices = GetPropertyIndices(cachedProps);
+				}
                 //load it
                 while(rdr.Read())
                 {
@@ -1513,10 +1577,20 @@ namespace SubSonic
                     IRecordBase arItem = (IRecordBase)item;
 
                     arItem.Load(rdr);
+
+                    //add custom properties
+                    if (loadCustomProperties && propIndices.Count > 0) {
+                        foreach (int i in propIndices) {
+                            if (!DBNull.Value.Equals(rdr[i])) {
+                                cachedProps[i].SetValue(item, rdr[i], null);
+                            }
+                        }
+                    }
+
                     result.Add(item);
                 }
             } //bferrier added this to get a list of values back if only selecting one column
-            else if(iType.IsValueType)
+            else if(typeof(T).IsValueType)
             {
                 while (rdr.Read())
                 {
@@ -1535,35 +1609,106 @@ namespace SubSonic
                 //coerce the values, using some light reflection            
 
                 //cache property info so we're not banging on reflection in a long loop
-                PropertyInfo[] cachedProps = new PropertyInfo[rdr.FieldCount];
-                for(int i = 0; i < rdr.FieldCount; i++)
-                    cachedProps[i] = iType.GetProperty(rdr.GetName(i), BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
+                PropertyInfo[] cachedProps = GetProperties<T>(rdr);
+                List<int> propIndices = GetPropertyIndices(cachedProps);
+                
                 //set the values        
-                PropertyInfo prop;
-                while(rdr.Read())
-                {
+                while (rdr.Read())
+				{
                     T item = new T();
 
-                    for(int i = 0; i < rdr.FieldCount; i++)
-                    {
-                        prop = cachedProps[i];
-                        if(prop != null && !DBNull.Value.Equals(rdr.GetValue(i)))
-                            prop.SetValue(item, rdr.GetValue(i), null);
+                    foreach (int i in propIndices)
+					{
+                        if (!DBNull.Value.Equals(rdr[i]))
+						{
+                            cachedProps[i].SetValue(item, rdr[i], null);
+                        }
                     }
+
                     result.Add(item);
                 }
+
             }
             return result;
         }
 
         /// <summary>
+        /// Get properties corresponding to a column of the IDataReader
+        /// </summary>
+        internal static PropertyInfo[] GetCustomProperties<T>(IDataReader rdr) where T : new()
+		{
+            return GetCustomProperties<T>(rdr, new T());
+        }
+
+        /// <summary>
+        /// Get properties corresponding to a column of the IDataReader
+        /// </summary>
+        internal static PropertyInfo[] GetCustomProperties<T>(IDataReader rdr, T item) where T : new()
+		{
+            Type iType = typeof(T);
+            PropertyInfo[] cachedProps = new PropertyInfo[rdr.FieldCount];
+            TableSchema.TableColumnSettingCollection tsc = ((IRecordBase)item).GetColumnSettings();
+            for (int i = 0; i < rdr.FieldCount; i++)
+			{
+                string colname = rdr.GetName(i);
+                if (tsc.Contains(colname.ToLower()))
+				{
+                    cachedProps[i] = null;
+                }
+                else
+				{
+                    cachedProps[i] = iType.GetProperty(colname, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                }
+            }
+            return cachedProps;
+        }
+
+        /// <summary>
+        /// Get all properties corresponding to a column of the IDataReader
+        /// </summary>
+        internal static PropertyInfo[] GetProperties<T>(IDataReader rdr)
+		{
+            Type iType = typeof(T);
+            PropertyInfo[] cachedProps = new PropertyInfo[rdr.FieldCount];
+            for (int i = 0; i < rdr.FieldCount; i++)
+			{
+                cachedProps[i] = iType.GetProperty(rdr.GetName(i), BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            }
+            return cachedProps;
+        }
+
+        /// <summary>
+        /// Build an array containing the indices of non null PropertyInfo items in the properties 
+        /// </summary>
+        internal static List<int> GetPropertyIndices(PropertyInfo[] properties)
+		{
+            List<int> indices = new List<int>();
+            for (int i =0; i < properties.Length; i++)
+			{
+                if (properties[i] != null)
+				{
+                    indices.Add(i);
+                }
+            }
+            return indices;
+        }
+        /// <summary>
         /// Executes the typed list.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
         public virtual List<T> ExecuteTypedList<T>() where T : new()
-        {
+		{
+            // Do not load custom properties by default
+            return ExecuteTypedList<T>(false);
+        }
+
+
+        /// <summary>
+        /// Executes the typed list.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="loadCustomProperties">Load custom properties of SubSonic types</param>
+        public virtual List<T> ExecuteTypedList<T>(bool loadCustomProperties) where T : new() {
             IDataReader rdr = null;
 
             try
@@ -1578,12 +1723,123 @@ namespace SubSonic
                 throw ex;
             }
 
-            List<T> result = BuildTypedResult<T>(rdr);
+            List<T> result = BuildTypedResult<T>(rdr, loadCustomProperties);
 
             if(rdr != null && !rdr.IsClosed)
                 rdr.Close();
 
             return result;
+        }
+
+        /// <summary>
+        /// Adds custom property values to the items in an loaded collection.
+        /// Primary key of T has to be in rdr
+        /// </summary>
+        internal static void AddCustomPropertyValues<T, U>(U collection, IDataReader rdr)
+            where U : ActiveList<T, U>, new()
+            where T : ActiveRecord<T>, IRecordBase, new() {
+
+            T item = new T();
+            string primaryKeyColumn = item.GetSchema().PrimaryKey.ColumnName;
+            //cache property info so we're not banging on reflection in a long loop
+            PropertyInfo[] cachedProps = GetCustomProperties<T>(rdr, item);
+            List<int> propIndices = GetPropertyIndices(cachedProps);
+
+            while (rdr.Read()) {
+                // find the corresponding item in the collection
+                item = (T)collection.Find(rdr[primaryKeyColumn]);
+                if (item != null) {
+                    //add custom properties
+                    foreach (int i in propIndices) {
+                        if (!DBNull.Value.Equals(rdr[i])) {
+                            cachedProps[i].SetValue(item, rdr[i], null);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds custom property values to the items in a generic list.
+        /// Primary key of T has to be in rdr
+        /// </summary>
+        internal static void AddCustomPropertyValues<T>(List<T> list, IDataReader rdr)
+            where T : ActiveRecord<T>, IRecordBase, new() {
+
+            T item = new T();
+            string primaryKeyColumn = item.GetSchema().PrimaryKey.ColumnName;
+            //cache property info so we're not banging on reflection in a long loop
+            PropertyInfo[] cachedProps = GetCustomProperties<T>(rdr, item);
+            List<int> propIndices = GetPropertyIndices(cachedProps);
+
+            while (rdr.Read()) {
+                // find the corresponding item in the collection
+                object pk = rdr[primaryKeyColumn];
+                item = list.Find(delegate(T testItem) {
+                    return (testItem.GetColumnValue(primaryKeyColumn).Equals(pk));
+                });
+                if (item != null) {
+                    //add custom properties
+                    foreach (int i in propIndices) {
+                        if (!DBNull.Value.Equals(rdr[i])) {
+                            cachedProps[i].SetValue(item, rdr[i], null);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds the query results as custom properties to the objects in a loaded collection.
+        /// Primary key of T has to be in the query
+        /// </summary>
+        public virtual void AddAsCustomProperties<T, U>(U collection)
+            where U : ActiveList<T, U>, new()
+            where T : ActiveRecord<T>, IRecordBase, new() {
+            IDataReader rdr = null;
+
+            try {
+                rdr = ExecuteReader();
+            }
+            catch (Exception x) {
+                if (rdr != null && !rdr.IsClosed)
+                    rdr.Close();
+                SqlQueryException ex = GenerateException(x);
+                throw ex;
+            }
+
+            AddCustomPropertyValues<T, U>(collection, rdr);
+
+            if (rdr != null && !rdr.IsClosed)
+                rdr.Close();
+
+            return;
+        }
+
+        /// <summary>
+        /// Adds the query results as custom properties to the objects in a loaded List.
+        /// Primary key of T has to be in the query
+        /// </summary>
+        public virtual void AddAsCustomProperties<T>(List<T> list)
+            where T : ActiveRecord<T>, IRecordBase, new() {
+            IDataReader rdr = null;
+
+            try {
+                rdr = ExecuteReader();
+            }
+            catch (Exception x) {
+                if (rdr != null && !rdr.IsClosed)
+                    rdr.Close();
+                SqlQueryException ex = GenerateException(x);
+                throw ex;
+            }
+
+            AddCustomPropertyValues<T>(list, rdr);
+
+            if (rdr != null && !rdr.IsClosed)
+                rdr.Close();
+
+            return;
         }
 
         /// <summary>

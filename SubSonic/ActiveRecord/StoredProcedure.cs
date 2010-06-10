@@ -309,20 +309,74 @@ namespace SubSonic
         }
 
         /// <summary>
+        /// Executes the typed list
+        /// </summary>
+        public virtual List<T> ExecuteScalarList<T>()
+		{
+            List<T> result;
+            using (IDataReader rdr = DataService.GetReader(Command)) {
+                result = SqlQuery.BuildScalarList<T>(rdr);
+                rdr.Close();
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Executes the typed list.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
         public List<T> ExecuteTypedList<T>() where T : new()
-        {
+		{
+            // Do not load custom properties by default
+            return ExecuteTypedList<T>(false);
+        }
+
+        /// <summary>
+        /// Executes the typed list.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="loadCustomProperties">Load custom properties of SubSonic types</param>
+        public List<T> ExecuteTypedList<T>(bool loadCustomProperties) where T : new() {
             List<T> result;
-            using(IDataReader rdr = DataService.GetReader(Command))
-            {
-                result = SqlQuery.BuildTypedResult<T>(rdr);
+            using (IDataReader rdr = DataService.GetReader(Command))
+			{
+                result = SqlQuery.BuildTypedResult<T>(rdr, loadCustomProperties);
                 rdr.Close();
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Adds the results as custom properties to the objects in a loaded collection.
+        /// Primary key of T has to be in the result returned from the stored procedure
+        /// </summary>
+        public virtual void AddAsCustomProperties<T, U>(U collection)
+            where U : ActiveList<T, U>, new()
+            where T : ActiveRecord<T>, IRecordBase, new()
+		{
+            using (IDataReader rdr = DataService.GetReader(Command))
+			{
+                SqlQuery.AddCustomPropertyValues<T, U>(collection, rdr);
+                rdr.Close();
+            }
+
+            return;
+        }
+        /// <summary>
+        /// Adds the query results as custom properties to the objects in a loaded List.
+        /// Primary key of T has to be in the query
+        /// </summary>
+        public virtual void AddAsCustomProperties<T>(List<T> list)
+            where T : ActiveRecord<T>, IRecordBase, new()
+		{
+            using (IDataReader rdr = DataService.GetReader(Command))
+			{
+                SqlQuery.AddCustomPropertyValues<T>(list, rdr);
+                rdr.Close();
+            }
+
+            return;
         }
 
         /// <summary>

@@ -297,6 +297,8 @@ namespace SubSonic
                 }
                 else
                 {
+                    rawColumnName = rawColumnName.Replace("[", String.Empty).Replace("]", String.Empty).Replace(".", String.Empty);
+
                     c.ParameterName = Utility.PrefixParameter(rawColumnName, query.Provider) + query.Constraints.IndexOf(c);
                     columnName = c.ConstructionFragment;
                 }

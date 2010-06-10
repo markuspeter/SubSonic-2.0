@@ -543,8 +543,101 @@ namespace SubSonic.Tests.SqlQuery
 
         #endregion
 
+        #region Custom properties
 
-        #region Product Snippets (thanks Shawn Oster!)
+        [Test]
+        public void Collection_LoadCustomProperties() {
+            SubSonic.SqlQuery q = new
+                Select(Product.ProductIDColumn, Category.CategoryNameColumn)
+                .From(Product.Schema)
+                .InnerJoin<Category>()
+                .OrderAsc(Product.ProductIDColumn.QualifiedName);
+
+            // Old behaviour
+            List<Product> result = q.ExecuteTypedList<Product>();
+            Assert.AreEqual(null, result[0].CategoryName);
+            Assert.AreEqual(1, result[0].ProductID);
+
+            // New behaviour
+            result = q.ExecuteTypedList<Product>(true);
+            Assert.AreEqual("Beverages", result[0].CategoryName);
+            Assert.AreEqual(1, result[0].ProductID);
+        }
+
+        [Test]
+        public void Collection_AddCustomProperties() {
+            ProductCollection result = new ProductCollection().OrderByAsc(Product.Columns.ProductID).Load();
+
+            SubSonic.SqlQuery q = new
+                Select(Product.ProductIDColumn, Category.CategoryNameColumn)
+                .From(Product.Schema)
+                .InnerJoin<Category>();
+
+            q.AddAsCustomProperties<Product, ProductCollection>(result);
+
+            Assert.AreEqual("Beverages", result[0].CategoryName);
+            Assert.AreEqual(1, result[0].ProductID);
+        }
+
+        [Test]
+        public void Collection_AddCustomPropertiesToList() {
+            List<Product> result = new Select().From(Product.Schema).OrderAsc(Product.Columns.ProductID).ExecuteTypedList<Product>();
+
+            SubSonic.SqlQuery q = new
+                Select(Product.ProductIDColumn, Category.CategoryNameColumn)
+                .From(Product.Schema)
+                .InnerJoin<Category>();
+
+            q.AddAsCustomProperties<Product>(result);
+
+            Assert.AreEqual("Beverages", result[0].CategoryName);
+            Assert.AreEqual(1, result[0].ProductID);
+        }
+
+
+        #endregion
+
+        #region Scalar list
+
+        [Test]
+        public void Exec_ScalarListString() {
+            SubSonic.SqlQuery q = new
+                Select(Product.ProductNameColumn)
+                .From(Product.Schema)
+                .OrderAsc(Product.ProductIDColumn.QualifiedName);
+
+            List<string> lst = q.ExecuteScalarList<string>();
+            Assert.AreEqual("Chai", lst[0]);
+            Assert.AreEqual(77, lst.Count);
+        }
+
+        [Test]
+        public void Exec_ScalarListGuid() {
+            SubSonic.SqlQuery q = new
+                Select(Product.ProductGUIDColumn)
+                .From(Product.Schema)
+                .OrderAsc(Product.ProductIDColumn.QualifiedName);
+
+            List<Guid> lst = q.ExecuteScalarList<Guid>();
+            Assert.AreEqual(new Guid("52c7760f-6b66-46e7-a99b-67cf142f2a6c"), lst[0]);
+            Assert.AreEqual(77, lst.Count);
+        }
+
+        [Test]
+        public void Exec_ScalarListShort() {
+            SubSonic.SqlQuery q = new
+                Select(Product.UnitsInStockColumn)
+                .From(Product.Schema)
+                .OrderAsc(Product.ProductIDColumn.QualifiedName);
+
+            List<short> lst = q.ExecuteScalarList<short>();
+            Assert.AreEqual(39, lst[0]);
+            Assert.AreEqual(77, lst.Count);
+        }
+
+        #endregion
+
+		#region Product Snippets (thanks Shawn Oster!)
 
         /// 
         /// Product load. Uses same code as in sample documentation, should be tested
@@ -866,5 +959,19 @@ namespace SubSonic.Tests.SqlQuery
 
         }
 
+    }
+}
+
+//Custom properties for Product class
+namespace Northwind
+{
+    public partial class Product
+    {
+        private string _categoryName;
+        public string CategoryName
+		{
+            get { return _categoryName; }
+            set { _categoryName = value; }
+        }
     }
 }
