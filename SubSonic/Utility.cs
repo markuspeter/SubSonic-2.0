@@ -172,6 +172,10 @@ namespace SubSonic.Utilities
         /// </returns>
         public static bool IsSql2000(DataProvider provider)
         {
+            if (provider.SqlServerVersion.Length > 0)
+            {
+                return (provider.SqlServerVersion == "2000");
+            }
             return provider.DatabaseVersion.IndexOf("2000 - 8.") > -1;
         }
 
@@ -184,6 +188,10 @@ namespace SubSonic.Utilities
         /// </returns>
         public static bool IsSql2005(DataProvider provider)
         {
+            if (provider.SqlServerVersion.Length > 0)
+            {
+                return (provider.SqlServerVersion == "2005");
+            }
             return provider.DatabaseVersion.IndexOf("2005") > -1;
         }
 
@@ -196,6 +204,10 @@ namespace SubSonic.Utilities
         /// </returns>
         public static bool IsSql2008(DataProvider provider)
         {
+            if (provider.SqlServerVersion.Length > 0)
+            {
+                return (provider.SqlServerVersion == "2008");
+            }
             return (provider.DatabaseVersion.IndexOf("2008") > -1) && (provider.DatabaseVersion.IndexOf(" - 10.") > -1);
         }
 

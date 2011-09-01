@@ -119,6 +119,7 @@ namespace SubSonic
         private bool useUtc;
         private string viewBaseClass = "ReadOnlyRecord";
         private string viewStartsWith = String.Empty;
+        private string sqlServerVersion = String.Empty;
 
         /// <summary>
         /// Gets the type of the named provider.
@@ -585,6 +586,16 @@ namespace SubSonic
         {
             get { return viewStartsWith; }
             set { viewStartsWith = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the sql server version to use - overrides auto-detection
+        /// </summary>
+        /// <value>The version of sql server</value>
+        public string SqlServerVersion
+        {
+            get { return sqlServerVersion; }
+            set { sqlServerVersion = value; }
         }
 
         /// <summary>
@@ -1576,6 +1587,7 @@ namespace SubSonic
             ApplyConfig(config, ref tableBaseClass, ConfigurationPropertyName.TABLE_BASE_CLASS);
             ApplyConfig(config, ref viewBaseClass, ConfigurationPropertyName.VIEW_BASE_CLASS);
             ApplyConfig(config, ref spBaseClass, ConfigurationPropertyName.STORED_PROCEDURE_BASE_CLASS);
+            ApplyConfig(config, ref sqlServerVersion, ConfigurationPropertyName.SQL_SERVER_VERSION);
         }
 
         /// <summary>
